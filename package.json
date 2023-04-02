@@ -41,5 +41,10 @@
   "eslintConfig": {
     "extends": "@schummar/eslint-config"
   },
-  "prettier": "@schummar/prettier-config"
+  "prettier": "@schummar/prettier-config",
+  "release": {
+    "branches": [
+      "main"
+    ]
+  }
 }
