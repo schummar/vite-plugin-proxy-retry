@@ -1,5 +1,11 @@
 Adds a retry option to Vite's dev server proxy. This is useful when you're developing against a backend that takes a while to start up.
 
+## Installation
+
+```sh
+npm install --save-dev vite-plugin-proxy-retry
+```
+
 ## Usage
 
 Enable retry with default options:

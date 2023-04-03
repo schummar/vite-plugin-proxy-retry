@@ -35,28 +35,28 @@ declare module 'vite' {
   }
 }
 
-export default function proxyRetryPlugin(options?: ProxyRetryPluginOptions): Plugin {
+export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOptions): Plugin {
   return {
-    name: 'yaml',
+    name: 'viteProxyRetryPlugin',
 
     config(config) {
       if (config.server?.proxy) {
         config.server.proxy = Object.fromEntries(
-          Object.entries(config.server.proxy).map(([context, options_]) => {
-            if (typeof options_ === 'string') {
-              options_ = { target: options_, changeOrigin: true } as ProxyOptions;
+          Object.entries(config.server.proxy).map(([context, entryOptions]) => {
+            if (typeof entryOptions === 'string') {
+              entryOptions = { target: entryOptions, changeOrigin: true } as ProxyOptions;
             }
 
-            const retry = options_.retry ?? options?.defaultRetryOptions;
-
-            if (!retry) {
-              return [context, options_];
-            }
-
+            const retry = entryOptions.retry ?? pluginOptions?.defaultRetryOptions;
             const { maxTries, delay, maxDelay, backoff } = resolveRetryOptions(retry);
-            const originalConfigure = options_.configure;
 
-            options_.configure = (proxy, options__) => {
+            if (maxTries <= 1) {
+              return [context, entryOptions];
+            }
+
+            const originalConfigure = entryOptions.configure;
+
+            entryOptions.configure = (proxy, proxyOptions) => {
               const defaultErrorListener = proxy.listeners('error')[1] as
                 | ((
                     error: Error,
@@ -91,9 +91,9 @@ export default function proxyRetryPlugin(options?: ProxyRetryPluginOptions): Plu
 
                     setTimeout(() => {
                       if ('req' in response) {
-                        proxy.web(request, response, options__);
+                        proxy.web(request, response, proxyOptions);
                       } else {
-                        proxy.ws(request, response, options__);
+                        proxy.ws(request, response, proxyOptions);
                       }
                     }, currentDelay);
 
@@ -104,10 +104,10 @@ export default function proxyRetryPlugin(options?: ProxyRetryPluginOptions): Plu
                 },
               );
 
-              originalConfigure?.(proxy, options__);
+              originalConfigure?.(proxy, proxyOptions);
             };
 
-            return [context, options_];
+            return [context, entryOptions];
           }),
         );
       }
