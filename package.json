@@ -46,7 +46,7 @@
     "semantic-release": "^21.0.1",
     "tsup": "6.7.0",
     "typescript": "5.0.3",
-    "vite": "4.2.1"
+    "vite": "6.0.7"
   },
   "eslintConfig": {
     "extends": "@schummar/eslint-config"
