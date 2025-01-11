@@ -1,6 +1,6 @@
 import http from 'http';
 import type net from 'net';
-import { createLogger, type HttpProxy, type Plugin, type ProxyOptions } from 'vite';
+import { type HttpProxy, type Plugin, type ProxyOptions } from 'vite';
 
 export interface ProxyRetryOptions {
   /**
@@ -35,16 +35,13 @@ declare module 'vite' {
   }
 }
 
-// Change to `info` for development.
-const logger = createLogger('warn', {
-  prefix: '[viteProxyRetryPlugin]',
-})
-
 export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOptions): Plugin {
   return {
     name: 'viteProxyRetryPlugin',
 
     config(config) {
+      const logger = config.customLogger
+
       if (config.server?.proxy) {
         config.server.proxy = Object.fromEntries(
           Object.entries(config.server.proxy).map(([context, entryOptions]) => {
@@ -64,7 +61,7 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
             // Vite will call this configure function first and only after that install its own
             // proxy middleware.
             entryOptions.configure = (proxy, proxyOptions) => {
-              logger.info('calling wrapped configure', {
+              logger?.info('calling wrapped configure', {
                 timestamp: true,
               })
 
@@ -88,7 +85,7 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
                   request.removeAllListeners('error')
                   request.removeAllListeners('aborted')
 
-                  logger.info('Received node-http-proxy error', {
+                  logger?.info('Received node-http-proxy error', {
                     timestamp: true,
                   })
                   const attempt = request.attempt ?? 0
@@ -104,7 +101,7 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
                         (response instanceof http.ServerResponse && response.headersSent)
                       ) {
                         // This may happen if removing the default error listener doesn't work (changes in Vite internals/etc)
-                        logger.warn(
+                        logger?.warn(
                           'Cannot retry request since sending response has already started. This may be caused by plugins conflicting with proxy changes or changes in Vite internals.',
                           {
                             timestamp: true,
@@ -121,7 +118,7 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
 
                     return
                   } else {
-                    logger.info('Max retries reached, calling default error listener', {
+                    logger?.info('Max retries reached, calling default error listener', {
                       timestamp: true,
                     })
                     // Default error listener sends 500 error headers making proxy fail.
