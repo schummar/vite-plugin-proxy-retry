@@ -35,18 +35,21 @@
     "lint:tsc": "tsc --noEmit",
     "build": "tsup src/index.ts --dts --format cjs,esm",
     "prepublishOnly": "runp lint -k build",
-    "test": "node tests/test.js"
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@schummar/eslint-config": "github:schummar/eslint-config",
     "@schummar/prettier-config": "github:schummar/prettier-config",
     "@schummar/runp": "^1.12.0",
     "@types/node": "18.15.11",
+    "@vitest/coverage-v8": "^2.1.8",
     "eslint": "8.37.0",
     "prettier": "2.8.7",
     "semantic-release": "^21.0.1",
     "tsup": "6.7.0",
-    "typescript": "5.0.3"
+    "typescript": "5.0.3",
+    "vitest": "^2.1.8"
   },
   "peerDependencies": {
     "vite": "^6.0"
