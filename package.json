@@ -34,9 +34,12 @@
     "lint:eslint": "lint src package.json",
     "lint:tsc": "tsc --noEmit",
     "build": "tsup src/index.ts --dts --format cjs,esm",
-    "prepublishOnly": "runp lint -k build",
+    "prepublishOnly": "runp lint test -k build",
     "test": "vitest run --coverage",
     "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "vite": "^6.0"
   },
   "devDependencies": {
     "@schummar/eslint-config": "github:schummar/eslint-config",
@@ -50,9 +53,6 @@
     "tsup": "6.7.0",
     "typescript": "5.0.3",
     "vitest": "^2.1.8"
-  },
-  "peerDependencies": {
-    "vite": "^6.0"
   },
   "eslintConfig": {
     "extends": "@schummar/eslint-config"

@@ -5,7 +5,8 @@
     "exactOptionalPropertyTypes": true,
     "allowSyntheticDefaultImports": true,
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

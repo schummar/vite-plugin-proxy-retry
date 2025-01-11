@@ -115,8 +115,6 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
                         proxy.ws(request, response, proxyOptions);
                       }
                     }, currentDelay);
-
-                    return;
                   } else {
                     logger?.info('Max retries reached, calling default error listener', {
                       timestamp: true,
