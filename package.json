@@ -1,6 +1,6 @@
 {
   "name": "vite-plugin-proxy-retry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Adds retry options to Vite's proxy config",
   "keywords": [
     "vite",
@@ -46,8 +46,10 @@
     "prettier": "2.8.7",
     "semantic-release": "^21.0.1",
     "tsup": "6.7.0",
-    "typescript": "5.0.3",
-    "vite": "6.0.7"
+    "typescript": "5.0.3"
+  },
+  "peerDependencies": {
+    "vite": "^6.0"
   },
   "eslintConfig": {
     "extends": "@schummar/eslint-config"
