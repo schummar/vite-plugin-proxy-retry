@@ -1,6 +1,6 @@
-import type http from 'http';
+import http from 'http';
 import type net from 'net';
-import { type Plugin, type ProxyOptions } from 'vite';
+import { createLogger, type HttpProxy, type Plugin, type ProxyOptions } from 'vite';
 
 export interface ProxyRetryOptions {
   /**
@@ -35,6 +35,11 @@ declare module 'vite' {
   }
 }
 
+// Change to `info` for development.
+const logger = createLogger('warn', {
+  prefix: '[viteProxyRetryPlugin]',
+})
+
 export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOptions): Plugin {
   return {
     name: 'viteProxyRetryPlugin',
@@ -56,60 +61,94 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
 
             const originalConfigure = entryOptions.configure;
 
+            // Vite will call this configure function first and only after that install its own
+            // proxy middleware.
             entryOptions.configure = (proxy, proxyOptions) => {
-              const defaultErrorListener = proxy.listeners('error')[1] as
-                | ((
-                    error: Error,
-                    request: http.IncomingMessage & {
-                      attempt?: number;
-                      currentDelay?: number;
-                    },
-                    response: http.ServerResponse | net.Socket,
-                  ) => void)
-                | undefined;
+              logger.info('calling wrapped configure', {
+                timestamp: true,
+              })
 
-              if (defaultErrorListener) {
-                proxy.removeListener('error', defaultErrorListener as () => void);
-              }
-
+              let defaultErrorListener: HttpProxy.ErrorCallback;
               proxy.on(
                 'error',
                 (
                   error,
                   request: http.IncomingMessage & {
-                    attempt?: number;
-                    currentDelay?: number;
+                    attempt?: number
+                    currentDelay?: number
                   },
-                  response: http.ServerResponse | net.Socket,
+                  response: http.ServerResponse | net.Socket
                 ) => {
-                  const attempt = request.attempt ?? 0;
-                  const currentDelay = request.currentDelay ?? delay;
+                  // Request `error` and `aborted` event listeners get added on each `proxy.web` call.
+                  const requestErrorListeners = request.listeners('error')
+                  const requestAbortedListeners = request.listeners('aborted')
+                  if (requestErrorListeners.length !== 1 || requestAbortedListeners.length !== 1) {
+                    throw new Error('Multiple request error listeners found')
+                  }
+                  request.removeAllListeners('error')
+                  request.removeAllListeners('aborted')
+
+                  logger.info('Received node-http-proxy error', {
+                    timestamp: true,
+                  })
+                  const attempt = request.attempt ?? 0
+                  const currentDelay = request.currentDelay ?? delay
 
                   if (attempt + 1 < maxTries) {
-                    request.attempt = attempt + 1;
-                    request.currentDelay = Math.min(currentDelay * (backoff ? 2 : 1), maxDelay);
+                    request.attempt = attempt + 1
+                    request.currentDelay = Math.min(currentDelay * (backoff ? 2 : 1), maxDelay)
 
                     setTimeout(() => {
-                      if ('req' in response) {
-                        proxy.web(request, response, proxyOptions);
-                      } else {
-                        proxy.ws(request, response, proxyOptions);
+                      if (
+                        response.writableEnded ||
+                        (response instanceof http.ServerResponse && response.headersSent)
+                      ) {
+                        // This may happen if removing the default error listener doesn't work (changes in Vite internals/etc)
+                        logger.warn(
+                          'Cannot retry request since sending response has already started. This may be caused by plugins conflicting with proxy changes or changes in Vite internals.',
+                          {
+                            timestamp: true,
+                          }
+                        )
+                        return
                       }
-                    }, currentDelay);
+                      if ('req' in response) {
+                        proxy.web(request, response, proxyOptions)
+                      } else {
+                        proxy.ws(request, response, proxyOptions)
+                      }
+                    }, currentDelay)
 
-                    return;
+                    return
+                  } else {
+                    logger.info('Max retries reached, calling default error listener', {
+                      timestamp: true,
+                    })
+                    // Default error listener sends 500 error headers making proxy fail.
+                    // Thus we only call it when max retries have been reached.
+                    defaultErrorListener?.(error, request, response as http.ServerResponse)
                   }
+                }
+              )
+              // Block next call to proxy.on("error") to not register Vite's own error listener which sends
+              // 500 error headers making writing the actual response fail.
+              const originalProxyOn = proxy.on.bind(proxy)
+              const wrappedProxyOn = (eventType: string, listener: any) => {
+                if (eventType === 'error') {
+                  defaultErrorListener = listener as HttpProxy.ErrorCallback;
+                  proxy.on = originalProxyOn
+                  return proxy
+                }
+                return originalProxyOn(eventType, listener)
+              }
+              proxy.on = wrappedProxyOn
 
-                  defaultErrorListener?.(error, request, response);
-                },
-              );
+              originalConfigure?.(proxy, proxyOptions)
+            }
 
-              originalConfigure?.(proxy, proxyOptions);
-            };
-
-            return [context, entryOptions];
-          }),
-        );
+            return [context, entryOptions]
+          })
+        )
       }
     },
   };
