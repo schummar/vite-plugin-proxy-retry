@@ -40,7 +40,7 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
     name: 'viteProxyRetryPlugin',
 
     config(config) {
-      const logger = config.customLogger
+      const logger = config.customLogger;
 
       if (config.server?.proxy) {
         config.server.proxy = Object.fromEntries(
@@ -63,7 +63,7 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
             entryOptions.configure = (proxy, proxyOptions) => {
               logger?.info('calling wrapped configure', {
                 timestamp: true,
-              })
+              });
 
               let defaultErrorListener: HttpProxy.ErrorCallback;
               proxy.on(
@@ -71,29 +71,29 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
                 (
                   error,
                   request: http.IncomingMessage & {
-                    attempt?: number
-                    currentDelay?: number
+                    attempt?: number;
+                    currentDelay?: number;
                   },
-                  response: http.ServerResponse | net.Socket
+                  response: http.ServerResponse | net.Socket,
                 ) => {
                   // Request `error` and `aborted` event listeners get added on each `proxy.web` call.
-                  const requestErrorListeners = request.listeners('error')
-                  const requestAbortedListeners = request.listeners('aborted')
+                  const requestErrorListeners = request.listeners('error');
+                  const requestAbortedListeners = request.listeners('aborted');
                   if (requestErrorListeners.length !== 1 || requestAbortedListeners.length !== 1) {
-                    throw new Error('Multiple request error listeners found')
+                    throw new Error('Multiple request error listeners found');
                   }
-                  request.removeAllListeners('error')
-                  request.removeAllListeners('aborted')
+                  request.removeAllListeners('error');
+                  request.removeAllListeners('aborted');
 
                   logger?.info('Received node-http-proxy error', {
                     timestamp: true,
-                  })
-                  const attempt = request.attempt ?? 0
-                  const currentDelay = request.currentDelay ?? delay
+                  });
+                  const attempt = request.attempt ?? 0;
+                  const currentDelay = request.currentDelay ?? delay;
 
                   if (attempt + 1 < maxTries) {
-                    request.attempt = attempt + 1
-                    request.currentDelay = Math.min(currentDelay * (backoff ? 2 : 1), maxDelay)
+                    request.attempt = attempt + 1;
+                    request.currentDelay = Math.min(currentDelay * (backoff ? 2 : 1), maxDelay);
 
                     setTimeout(() => {
                       if (
@@ -105,47 +105,47 @@ export default function viteProxyRetryPlugin(pluginOptions?: ProxyRetryPluginOpt
                           'Cannot retry request since sending response has already started. This may be caused by plugins conflicting with proxy changes or changes in Vite internals.',
                           {
                             timestamp: true,
-                          }
-                        )
-                        return
+                          },
+                        );
+                        return;
                       }
                       if ('req' in response) {
-                        proxy.web(request, response, proxyOptions)
+                        proxy.web(request, response, proxyOptions);
                       } else {
-                        proxy.ws(request, response, proxyOptions)
+                        proxy.ws(request, response, proxyOptions);
                       }
-                    }, currentDelay)
+                    }, currentDelay);
 
-                    return
+                    return;
                   } else {
                     logger?.info('Max retries reached, calling default error listener', {
                       timestamp: true,
-                    })
+                    });
                     // Default error listener sends 500 error headers making proxy fail.
                     // Thus we only call it when max retries have been reached.
-                    defaultErrorListener?.(error, request, response as http.ServerResponse)
+                    defaultErrorListener?.(error, request, response as http.ServerResponse);
                   }
-                }
-              )
+                },
+              );
               // Block next call to proxy.on("error") to not register Vite's own error listener which sends
               // 500 error headers making writing the actual response fail.
-              const originalProxyOn = proxy.on.bind(proxy)
+              const originalProxyOn = proxy.on.bind(proxy);
               const wrappedProxyOn = (eventType: string, listener: any) => {
                 if (eventType === 'error') {
                   defaultErrorListener = listener as HttpProxy.ErrorCallback;
-                  proxy.on = originalProxyOn
-                  return proxy
+                  proxy.on = originalProxyOn;
+                  return proxy;
                 }
-                return originalProxyOn(eventType, listener)
-              }
-              proxy.on = wrappedProxyOn
+                return originalProxyOn(eventType, listener);
+              };
+              proxy.on = wrappedProxyOn;
 
-              originalConfigure?.(proxy, proxyOptions)
-            }
+              originalConfigure?.(proxy, proxyOptions);
+            };
 
-            return [context, entryOptions]
-          })
-        )
+            return [context, entryOptions];
+          }),
+        );
       }
     },
   };
